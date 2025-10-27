@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{00C91D55-8C4B-495C-9FFD-8F182A4767C9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skald", "src\Skald\Skald.csproj", "{B768B650-B64D-4FDF-9187-0D4A64A401DA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{6DB3530C-F895-434F-A59B-F73F6DD10968}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skald.Tests", "tests\Skald.Tests\Skald.Tests.csproj", "{AFA2C52F-15B6-415B-9D18-CDC063B24DD5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B768B650-B64D-4FDF-9187-0D4A64A401DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B768B650-B64D-4FDF-9187-0D4A64A401DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B768B650-B64D-4FDF-9187-0D4A64A401DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B768B650-B64D-4FDF-9187-0D4A64A401DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AFA2C52F-15B6-415B-9D18-CDC063B24DD5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AFA2C52F-15B6-415B-9D18-CDC063B24DD5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AFA2C52F-15B6-415B-9D18-CDC063B24DD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AFA2C52F-15B6-415B-9D18-CDC063B24DD5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B768B650-B64D-4FDF-9187-0D4A64A401DA} = {00C91D55-8C4B-495C-9FFD-8F182A4767C9}
+		{AFA2C52F-15B6-415B-9D18-CDC063B24DD5} = {6DB3530C-F895-434F-A59B-F73F6DD10968}
+	EndGlobalSection
+EndGlobal
