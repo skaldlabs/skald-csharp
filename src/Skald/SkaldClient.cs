@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -11,6 +12,68 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Skald;
+
+/// <summary>
+/// Custom JSON naming policy for snake_case conversion
+/// </summary>
+internal class SnakeCaseNamingPolicy : JsonNamingPolicy
+{
+    public static readonly SnakeCaseNamingPolicy Instance = new SnakeCaseNamingPolicy();
+
+    public override string ConvertName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return name;
+
+        var builder = new StringBuilder();
+        builder.Append(char.ToLowerInvariant(name[0]));
+
+        for (int i = 1; i < name.Length; i++)
+        {
+            char c = name[i];
+            if (char.IsUpper(c))
+            {
+                builder.Append('_');
+                builder.Append(char.ToLowerInvariant(c));
+            }
+            else
+            {
+                builder.Append(c);
+            }
+        }
+
+        return builder.ToString();
+    }
+}
+
+/// <summary>
+/// Custom JSON converter for enums that uses snake_case
+/// </summary>
+internal class SnakeCaseEnumConverter<TEnum> : System.Text.Json.Serialization.JsonConverter<TEnum> where TEnum : struct, Enum
+{
+    public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var value = reader.GetString();
+        if (string.IsNullOrEmpty(value))
+            return default;
+
+        // Convert snake_case to PascalCase for parsing
+        var pascalCase = string.Join("", value.Split('_').Select(part =>
+            char.ToUpperInvariant(part[0]) + part.Substring(1).ToLowerInvariant()));
+
+        if (Enum.TryParse<TEnum>(pascalCase, true, out var result))
+            return result;
+
+        throw new JsonException($"Unable to convert \"{value}\" to {typeof(TEnum).Name}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options)
+    {
+        var name = value.ToString();
+        var snakeCase = SnakeCaseNamingPolicy.Instance.ConvertName(name);
+        writer.WriteStringValue(snakeCase);
+    }
+}
 
 /// <summary>
 /// Client for interacting with the Skald API
@@ -65,7 +128,17 @@ public class SkaldClient : IDisposable
         memoData.Metadata ??= new Dictionary<string, object>();
 
         var url = $"{_baseUrl}/api/v1/memo";
-        var response = await _httpClient.PostAsJsonAsync(url, memoData, cancellationToken);
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        var jsonContent = JsonSerializer.Serialize(memoData, options);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync(url, content, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -169,9 +242,18 @@ public class SkaldClient : IDisposable
             url += "?id_type=reference_id";
         }
 
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        var jsonContent = JsonSerializer.Serialize(updateData, options);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
         var request = new HttpRequestMessage(HttpMethod.Patch, url)
         {
-            Content = JsonContent.Create(updateData)
+            Content = content
         };
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
@@ -230,10 +312,14 @@ public class SkaldClient : IDisposable
 
         var options = new JsonSerializerOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
-        var response = await _httpClient.PostAsJsonAsync(url, searchRequest, options, cancellationToken);
+        var jsonContent = JsonSerializer.Serialize(searchRequest, options);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync(url, content, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -265,8 +351,17 @@ public class SkaldClient : IDisposable
             Filters = filters
         };
 
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
         var url = $"{_baseUrl}/api/v1/chat";
-        var response = await _httpClient.PostAsJsonAsync(url, chatRequest, cancellationToken);
+        var jsonContent = JsonSerializer.Serialize(chatRequest, options);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync(url, content, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -302,10 +397,19 @@ public class SkaldClient : IDisposable
             Filters = filters
         };
 
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        var jsonContent = JsonSerializer.Serialize(chatRequest, options);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
         var url = $"{_baseUrl}/api/v1/chat";
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            Content = JsonContent.Create(chatRequest)
+            Content = content
         };
 
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -372,8 +476,17 @@ public class SkaldClient : IDisposable
             Filters = filters
         };
 
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
         var url = $"{_baseUrl}/api/v1/generate";
-        var response = await _httpClient.PostAsJsonAsync(url, generateRequest, cancellationToken);
+        var jsonContent = JsonSerializer.Serialize(generateRequest, options);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync(url, content, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -412,10 +525,19 @@ public class SkaldClient : IDisposable
             Filters = filters
         };
 
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        var jsonContent = JsonSerializer.Serialize(generateRequest, options);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
         var url = $"{_baseUrl}/api/v1/generate";
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            Content = JsonContent.Create(generateRequest)
+            Content = content
         };
 
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);

@@ -268,13 +268,13 @@ public class Memo
     /// Tags associated with the memo
     /// </summary>
     [JsonPropertyName("tags")]
-    public required List<MemoTag> Tags { get; set; }
+    public List<MemoTag> Tags { get; set; } = new List<MemoTag>();
 
     /// <summary>
     /// Content chunks
     /// </summary>
     [JsonPropertyName("chunks")]
-    public required List<MemoChunk> Chunks { get; set; }
+    public List<MemoChunk> Chunks { get; set; } = new List<MemoChunk>();
 }
 
 /// <summary>
@@ -449,7 +449,7 @@ public class Filter
     /// Comparison operator
     /// </summary>
     [JsonPropertyName("operator")]
-    [JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+    [JsonConverter(typeof(SnakeCaseEnumConverter<FilterOperator>))]
     public FilterOperator Operator { get; set; }
 
     /// <summary>
@@ -462,7 +462,7 @@ public class Filter
     /// Type of field (native_field or custom_metadata)
     /// </summary>
     [JsonPropertyName("filter_type")]
-    [JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+    [JsonConverter(typeof(SnakeCaseEnumConverter<FilterType>))]
     public FilterType FilterType { get; set; }
 }
 
@@ -502,7 +502,7 @@ public class SearchRequest
     /// Search method to use (required)
     /// </summary>
     [JsonPropertyName("search_method")]
-    [JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+    [JsonConverter(typeof(SnakeCaseEnumConverter<SearchMethod>))]
     public SearchMethod SearchMethod { get; set; }
 
     /// <summary>
