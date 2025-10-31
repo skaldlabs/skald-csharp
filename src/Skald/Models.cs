@@ -474,17 +474,7 @@ public enum SearchMethod
     /// <summary>
     /// Semantic search on memo chunks
     /// </summary>
-    ChunkVectorSearch,
-
-    /// <summary>
-    /// Case-insensitive substring match on titles
-    /// </summary>
-    TitleContains,
-
-    /// <summary>
-    /// Case-insensitive prefix match on titles
-    /// </summary>
-    TitleStartswith
+    ChunkSemanticSearch
 }
 
 /// <summary>
@@ -618,78 +608,6 @@ public class ChatResponse
 /// Event from streaming chat
 /// </summary>
 public class ChatStreamEvent
-{
-    /// <summary>
-    /// Event type (token or done)
-    /// </summary>
-    [JsonPropertyName("type")]
-    public required string Type { get; set; }
-
-    /// <summary>
-    /// Token content (for token events)
-    /// </summary>
-    [JsonPropertyName("content")]
-    public string? Content { get; set; }
-}
-
-/// <summary>
-/// Request for document generation
-/// </summary>
-public class GenerateDocRequest
-{
-    /// <summary>
-    /// Prompt for document generation (required)
-    /// </summary>
-    [JsonPropertyName("prompt")]
-    public required string Prompt { get; set; }
-
-    /// <summary>
-    /// Optional style/format rules
-    /// </summary>
-    [JsonPropertyName("rules")]
-    public string? Rules { get; set; }
-
-    /// <summary>
-    /// Whether to stream the response
-    /// </summary>
-    [JsonPropertyName("stream")]
-    public bool? Stream { get; set; }
-
-    /// <summary>
-    /// Optional filters to control which memos are used
-    /// </summary>
-    [JsonPropertyName("filters")]
-    public List<Filter>? Filters { get; set; }
-}
-
-/// <summary>
-/// Response from document generation
-/// </summary>
-public class GenerateDocResponse
-{
-    /// <summary>
-    /// Success status
-    /// </summary>
-    [JsonPropertyName("ok")]
-    public bool Ok { get; set; }
-
-    /// <summary>
-    /// Generated document with inline citations
-    /// </summary>
-    [JsonPropertyName("response")]
-    public required string Response { get; set; }
-
-    /// <summary>
-    /// Steps taken by the agent
-    /// </summary>
-    [JsonPropertyName("intermediate_steps")]
-    public required List<object> IntermediateSteps { get; set; }
-}
-
-/// <summary>
-/// Event from streaming document generation
-/// </summary>
-public class GenerateDocStreamEvent
 {
     /// <summary>
     /// Event type (token or done)

@@ -337,9 +337,9 @@ public class SkaldClient : IDisposable
     /// <param name="query">The question to ask</param>
     /// <param name="filters">Optional filters to narrow the search context</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Chat response with answer and citations</returns>
+    /// <returns>Response text with answer and citations</returns>
     /// <exception cref="SkaldException">Thrown when the API request fails</exception>
-    public async Task<ChatResponse> ChatAsync(string query, List<Filter>? filters = null, CancellationToken cancellationToken = default)
+    public async Task<string> ChatAsync(string query, List<Filter>? filters = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
             throw new ArgumentException("Query cannot be null or empty", nameof(query));
@@ -369,8 +369,10 @@ public class SkaldClient : IDisposable
             throw new SkaldException($"Skald API error ({(int)response.StatusCode}): {errorText}");
         }
 
-        return await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken)
+        var chatResponse = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken)
             ?? throw new SkaldException("Failed to deserialize response");
+
+        return chatResponse.Response;
     }
 
     /// <summary>
@@ -437,132 +439,6 @@ public class SkaldClient : IDisposable
             {
                 var data = line.Substring(6);
                 var streamEvent = TryDeserialize<ChatStreamEvent>(data);
-                if (streamEvent != null)
-                {
-                    yield return streamEvent;
-
-                    if (streamEvent.Type == "done")
-                        yield break;
-                }
-            }
-            // Skip ping lines (": ping") and other lines
-        }
-    }
-
-    /// <summary>
-    /// Generate documents based on prompts and retrieved context from the knowledge base with optional filtering (non-streaming).
-    /// Similar to chat but optimized for document generation with optional style/format rules.
-    /// </summary>
-    /// <param name="prompt">The prompt for document generation</param>
-    /// <param name="rules">Optional style/format rules</param>
-    /// <param name="filters">Optional filters to control which memos are used as context</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Generated document response</returns>
-    /// <exception cref="SkaldException">Thrown when the API request fails</exception>
-    public async Task<GenerateDocResponse> GenerateDocAsync(
-        string prompt,
-        string? rules = null,
-        List<Filter>? filters = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(prompt))
-            throw new ArgumentException("Prompt cannot be null or empty", nameof(prompt));
-
-        var generateRequest = new GenerateDocRequest
-        {
-            Prompt = prompt,
-            Rules = rules,
-            Stream = false,
-            Filters = filters
-        };
-
-        var options = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        };
-
-        var url = $"{_baseUrl}/api/v1/generate";
-        var jsonContent = JsonSerializer.Serialize(generateRequest, options);
-        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-        var response = await _httpClient.PostAsync(url, content, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorText = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new SkaldException($"Skald API error ({(int)response.StatusCode}): {errorText}");
-        }
-
-        return await response.Content.ReadFromJsonAsync<GenerateDocResponse>(cancellationToken)
-            ?? throw new SkaldException("Failed to deserialize response");
-    }
-
-    /// <summary>
-    /// Generate documents with streaming responses and optional filtering. Returns an async enumerable that yields tokens as they arrive.
-    /// Similar to chat but optimized for document generation with optional style/format rules.
-    /// </summary>
-    /// <param name="prompt">The prompt for document generation</param>
-    /// <param name="rules">Optional style/format rules</param>
-    /// <param name="filters">Optional filters to control which memos are used as context</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Async enumerable of document generation stream events</returns>
-    /// <exception cref="SkaldException">Thrown when the API request fails</exception>
-    public async IAsyncEnumerable<GenerateDocStreamEvent> StreamedGenerateDocAsync(
-        string prompt,
-        string? rules = null,
-        List<Filter>? filters = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(prompt))
-            throw new ArgumentException("Prompt cannot be null or empty", nameof(prompt));
-
-        var generateRequest = new GenerateDocRequest
-        {
-            Prompt = prompt,
-            Rules = rules,
-            Stream = true,
-            Filters = filters
-        };
-
-        var options = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        };
-
-        var jsonContent = JsonSerializer.Serialize(generateRequest, options);
-        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-        var url = $"{_baseUrl}/api/v1/generate";
-        var request = new HttpRequestMessage(HttpMethod.Post, url)
-        {
-            Content = content
-        };
-
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorText = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new SkaldException($"Skald API error ({(int)response.StatusCode}): {errorText}");
-        }
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream);
-
-        while (!reader.EndOfStream)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var line = await reader.ReadLineAsync(cancellationToken);
-            if (string.IsNullOrWhiteSpace(line))
-                continue;
-
-            if (line.StartsWith("data: "))
-            {
-                var data = line.Substring(6);
-                var streamEvent = TryDeserialize<GenerateDocStreamEvent>(data);
                 if (streamEvent != null)
                 {
                     yield return streamEvent;
