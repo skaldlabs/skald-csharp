@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Skald;
 
@@ -38,7 +39,7 @@ class Program
                 Tags = new List<string> { "meeting", "q1", "planning" },
                 Source = "notion"
             });
-            Console.WriteLine($"Memo created: {createResponse.Ok}");
+            Console.WriteLine($"Memo created successfully with UUID: {createResponse.MemoUuid}");
 
             // Example 2: List memos
             Console.WriteLine("\nListing memos...");
@@ -53,12 +54,12 @@ class Program
                 Console.WriteLine($"  - {memo.Title} (UUID: {memo.Uuid})");
             }
 
-            // Example 3: Get a memo by reference ID
+            // Example 3: Get a memo by UUID
             if (memos.Results.Count > 0)
             {
                 var firstMemoUuid = memos.Results[0].Uuid;
                 Console.WriteLine($"\nGetting memo {firstMemoUuid}...");
-                var memo = await client.GetMemoAsync(firstMemoUuid);
+                var memo = await client.GetMemoAsync(new GetMemoRequest { MemoId = firstMemoUuid });
                 Console.WriteLine($"Title: {memo.Title}");
                 Console.WriteLine($"Summary: {memo.Summary}");
                 Console.WriteLine($"Tags: {string.Join(", ", memo.Tags.ConvertAll(t => t.Tag))}");
@@ -69,7 +70,7 @@ class Program
             var searchResults = await client.SearchAsync(new SearchRequest
             {
                 Query = "planning goals",
-                SearchMethod = SearchMethod.ChunkVectorSearch,
+                SearchMethod = SearchMethod.ChunkSemanticSearch,
                 Limit = 5
             });
             Console.WriteLine($"Found {searchResults.Results.Count} results:");
@@ -84,7 +85,7 @@ class Program
             var filteredSearch = await client.SearchAsync(new SearchRequest
             {
                 Query = "goals",
-                SearchMethod = SearchMethod.TitleContains,
+                SearchMethod = SearchMethod.ChunkSemanticSearch,
                 Filters = new List<Filter>
                 {
                     new Filter
@@ -107,73 +108,142 @@ class Program
 
             // Example 6: Chat (non-streaming)
             Console.WriteLine("\nAsking a question...");
-            var chatResponse = await client.ChatAsync("What are the main goals for Q1?");
+            var chatResponse = await client.ChatAsync(new ChatRequest
+            {
+                Query = "What are the main goals for Q1?"
+            });
             Console.WriteLine($"Answer: {chatResponse.Response}");
+            Console.WriteLine($"Chat ID: {chatResponse.ChatId}");
 
-            // Example 7: Chat with streaming
+            // Example 7: Chat with conversation continuity
+            if (!string.IsNullOrEmpty(chatResponse.ChatId))
+            {
+                Console.WriteLine("\nContinuing the conversation...");
+                var followUpResponse = await client.ChatAsync(new ChatRequest
+                {
+                    Query = "Can you elaborate on the first goal?",
+                    ChatId = chatResponse.ChatId
+                });
+                Console.WriteLine($"Follow-up answer: {followUpResponse.Response}");
+            }
+
+            // Example 8: Chat with RAG configuration
+            Console.WriteLine("\nAsking with custom RAG config...");
+            var ragResponse = await client.ChatAsync(new ChatRequest
+            {
+                Query = "Summarize the planning meeting",
+                RagConfig = new RAGConfig
+                {
+                    LlmProvider = LLMProvider.Anthropic,
+                    QueryRewrite = new QueryRewriteConfig { Enabled = true },
+                    VectorSearch = new VectorSearchConfig { TopK = 10, SimilarityThreshold = 0.7 },
+                    Reranking = new RerankingConfig { Enabled = true, TopK = 5 },
+                    References = new ReferencesConfig { Enabled = true }
+                }
+            });
+            Console.WriteLine($"Answer: {ragResponse.Response}");
+            if (ragResponse.References != null && ragResponse.References.Count > 0)
+            {
+                Console.WriteLine("References:");
+                foreach (var reference in ragResponse.References)
+                {
+                    Console.WriteLine($"  [{reference.Key}] => Memo UUID: {reference.Value}");
+                }
+            }
+
+            // Example 9: Chat with streaming
             Console.WriteLine("\nAsking a question with streaming...");
-            await foreach (var evt in client.StreamedChatAsync("Summarize the key points from planning meetings"))
+            await foreach (var evt in client.StreamedChatAsync(new ChatRequest
+            {
+                Query = "Summarize the key points from planning meetings"
+            }))
             {
                 if (evt.Type == "token" && evt.Content != null)
                 {
                     Console.Write(evt.Content);
                 }
+                else if (evt.Type == "references" && evt.Content != null)
+                {
+                    Console.WriteLine($"\n[References: {evt.Content}]");
+                }
                 else if (evt.Type == "done")
                 {
-                    Console.WriteLine("\nDone!");
+                    Console.WriteLine($"\nDone! (Chat ID: {evt.ChatId})");
                 }
             }
 
-            // Example 8: Generate document
-            Console.WriteLine("\nGenerating a document...");
-            var doc = await client.GenerateDocAsync(
-                prompt: "Create a summary document of Q1 planning discussions",
-                rules: "Use formal business language. Include sections for: Executive Summary, Key Goals, Action Items"
-            );
-            Console.WriteLine("Generated document:");
-            Console.WriteLine(doc.Response);
-
-            // Example 9: Generate document with streaming
-            Console.WriteLine("\nGenerating a document with streaming...");
-            await foreach (var evt in client.StreamedGenerateDocAsync(
-                prompt: "Create a brief outline of the Q1 goals",
-                rules: "Use bullet points"))
+            // Example 10: Create memo from file (if you have a PDF file)
+            /*
+            Console.WriteLine("\nCreating memo from PDF file...");
+            var pdfBytes = await File.ReadAllBytesAsync("path/to/document.pdf");
+            var fileResponse = await client.CreateMemoFromFileAsync(new MemoFileData
             {
-                if (evt.Type == "token" && evt.Content != null)
-                {
-                    Console.Write(evt.Content);
-                }
-                else if (evt.Type == "done")
-                {
-                    Console.WriteLine("\nDone!");
-                }
-            }
+                File = pdfBytes,
+                Filename = "document.pdf",
+                Title = "Important Document",
+                Tags = new List<string> { "document", "pdf" },
+                Source = "file-upload"
+            });
+            Console.WriteLine($"File uploaded successfully with UUID: {fileResponse.MemoUuid}");
 
-            // Example 10: Update a memo
+            // Check processing status
+            Console.WriteLine("\nChecking memo status...");
+            MemoStatus status;
+            do
+            {
+                await Task.Delay(2000); // Wait 2 seconds
+                var statusResponse = await client.CheckMemoStatusAsync(new CheckMemoStatusRequest
+                {
+                    MemoId = fileResponse.MemoUuid
+                });
+                status = statusResponse.Status;
+                Console.WriteLine($"Status: {status}");
+
+                if (status == MemoStatus.Error && statusResponse.ErrorReason != null)
+                {
+                    Console.WriteLine($"Error: {statusResponse.ErrorReason}");
+                    break;
+                }
+            } while (status == MemoStatus.Processing);
+
+            if (status == MemoStatus.Processed)
+            {
+                Console.WriteLine("File processed successfully!");
+            }
+            */
+
+            // Example 11: Update a memo
             if (memos.Results.Count > 0)
             {
                 var memoToUpdate = memos.Results[0].Uuid;
                 Console.WriteLine($"\nUpdating memo {memoToUpdate}...");
-                var updateResponse = await client.UpdateMemoAsync(memoToUpdate, new UpdateMemoData
+                var updateResponse = await client.UpdateMemoAsync(new UpdateMemoRequest
                 {
-                    Title = "Updated: " + memos.Results[0].Title,
-                    Metadata = new Dictionary<string, object>
+                    MemoId = memoToUpdate,
+                    UpdateData = new UpdateMemoData
                     {
-                        { "status", "reviewed" },
-                        { "last_updated_by", "API" }
+                        Title = "Updated: " + memos.Results[0].Title,
+                        Metadata = new Dictionary<string, object>
+                        {
+                            { "status", "reviewed" },
+                            { "last_updated_by", "API" }
+                        }
                     }
                 });
                 Console.WriteLine($"Update successful: {updateResponse.Ok}");
             }
 
-            // Example 11: Delete a memo (commented out to avoid deleting data)
+            // Example 12: Delete a memo (commented out to avoid deleting data)
             /*
             if (memos.Results.Count > 0)
             {
                 var memoToDelete = memos.Results[0].Uuid;
                 Console.WriteLine($"\nDeleting memo {memoToDelete}...");
-                await client.DeleteMemoAsync(memoToDelete);
-                Console.WriteLine("Delete successful");
+                var deleteResponse = await client.DeleteMemoAsync(new DeleteMemoRequest
+                {
+                    MemoId = memoToDelete
+                });
+                Console.WriteLine($"Delete successful: {deleteResponse.Ok}");
             }
             */
 

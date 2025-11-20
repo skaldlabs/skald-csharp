@@ -61,6 +61,12 @@ public class CreateMemoResponse
     /// </summary>
     [JsonPropertyName("ok")]
     public bool Ok { get; set; }
+
+    /// <summary>
+    /// UUID of the created memo
+    /// </summary>
+    [JsonPropertyName("memo_uuid")]
+    public required string MemoUuid { get; set; }
 }
 
 /// <summary>
@@ -378,6 +384,186 @@ public class ListMemosParams
 }
 
 /// <summary>
+/// Request for getting a memo
+/// </summary>
+public class GetMemoRequest
+{
+    /// <summary>
+    /// The memo UUID or client reference ID
+    /// </summary>
+    public required string MemoId { get; set; }
+
+    /// <summary>
+    /// The type of identifier (default: MemoUuid)
+    /// </summary>
+    public IdType IdType { get; set; } = IdType.MemoUuid;
+}
+
+/// <summary>
+/// Request for updating a memo
+/// </summary>
+public class UpdateMemoRequest
+{
+    /// <summary>
+    /// The memo UUID or client reference ID
+    /// </summary>
+    public required string MemoId { get; set; }
+
+    /// <summary>
+    /// The fields to update
+    /// </summary>
+    public required UpdateMemoData UpdateData { get; set; }
+
+    /// <summary>
+    /// The type of identifier (default: MemoUuid)
+    /// </summary>
+    public IdType IdType { get; set; } = IdType.MemoUuid;
+}
+
+/// <summary>
+/// Request for deleting a memo
+/// </summary>
+public class DeleteMemoRequest
+{
+    /// <summary>
+    /// The memo UUID or client reference ID
+    /// </summary>
+    public required string MemoId { get; set; }
+
+    /// <summary>
+    /// The type of identifier (default: MemoUuid)
+    /// </summary>
+    public IdType IdType { get; set; } = IdType.MemoUuid;
+}
+
+/// <summary>
+/// Response from deleting a memo
+/// </summary>
+public class DeleteMemoResponse
+{
+    /// <summary>
+    /// Success status
+    /// </summary>
+    [JsonPropertyName("ok")]
+    public bool Ok { get; set; }
+}
+
+/// <summary>
+/// Data for creating a memo from a file
+/// </summary>
+public class MemoFileData
+{
+    /// <summary>
+    /// The file content as a byte array (required)
+    /// </summary>
+    public required byte[] File { get; set; }
+
+    /// <summary>
+    /// The filename with extension (required)
+    /// </summary>
+    public required string Filename { get; set; }
+
+    /// <summary>
+    /// Optional title for the memo (defaults to filename if not provided)
+    /// </summary>
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Optional external reference ID
+    /// </summary>
+    public string? ReferenceId { get; set; }
+
+    /// <summary>
+    /// Optional custom JSON metadata
+    /// </summary>
+    public Dictionary<string, object>? Metadata { get; set; }
+
+    /// <summary>
+    /// Optional array of tags
+    /// </summary>
+    public List<string>? Tags { get; set; }
+
+    /// <summary>
+    /// Optional source system name
+    /// </summary>
+    public string? Source { get; set; }
+}
+
+/// <summary>
+/// Response from creating a memo from a file
+/// </summary>
+public class CreateMemoFromFileResponse
+{
+    /// <summary>
+    /// Success status
+    /// </summary>
+    [JsonPropertyName("ok")]
+    public bool Ok { get; set; }
+
+    /// <summary>
+    /// UUID of the created memo
+    /// </summary>
+    [JsonPropertyName("memo_uuid")]
+    public required string MemoUuid { get; set; }
+}
+
+/// <summary>
+/// Memo processing status
+/// </summary>
+public enum MemoStatus
+{
+    /// <summary>
+    /// Memo is currently being processed
+    /// </summary>
+    Processing,
+
+    /// <summary>
+    /// Memo has been successfully processed
+    /// </summary>
+    Processed,
+
+    /// <summary>
+    /// An error occurred during processing
+    /// </summary>
+    Error
+}
+
+/// <summary>
+/// Request for checking memo status
+/// </summary>
+public class CheckMemoStatusRequest
+{
+    /// <summary>
+    /// The memo UUID or client reference ID
+    /// </summary>
+    public required string MemoId { get; set; }
+
+    /// <summary>
+    /// The type of identifier (default: MemoUuid)
+    /// </summary>
+    public IdType IdType { get; set; } = IdType.MemoUuid;
+}
+
+/// <summary>
+/// Response from checking memo status
+/// </summary>
+public class MemoStatusResponse
+{
+    /// <summary>
+    /// Current processing status
+    /// </summary>
+    [JsonPropertyName("status")]
+    [JsonConverter(typeof(SnakeCaseEnumConverter<MemoStatus>))]
+    public MemoStatus Status { get; set; }
+
+    /// <summary>
+    /// Error reason if status is Error
+    /// </summary>
+    [JsonPropertyName("error_reason")]
+    public string? ErrorReason { get; set; }
+}
+
+/// <summary>
 /// Filter operator for filtering search results
 /// </summary>
 public enum FilterOperator
@@ -557,6 +743,124 @@ public class SearchResponse
 }
 
 /// <summary>
+/// LLM provider options
+/// </summary>
+public enum LLMProvider
+{
+    /// <summary>
+    /// OpenAI
+    /// </summary>
+    Openai,
+
+    /// <summary>
+    /// Anthropic
+    /// </summary>
+    Anthropic,
+
+    /// <summary>
+    /// Groq
+    /// </summary>
+    Groq
+}
+
+/// <summary>
+/// Configuration for query rewriting
+/// </summary>
+public class QueryRewriteConfig
+{
+    /// <summary>
+    /// Whether query rewriting is enabled
+    /// </summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+}
+
+/// <summary>
+/// Configuration for vector search
+/// </summary>
+public class VectorSearchConfig
+{
+    /// <summary>
+    /// Number of results to return (1-200)
+    /// </summary>
+    [JsonPropertyName("top_k")]
+    public int? TopK { get; set; }
+
+    /// <summary>
+    /// Similarity threshold (0.0-1.0)
+    /// </summary>
+    [JsonPropertyName("similarity_threshold")]
+    public double? SimilarityThreshold { get; set; }
+}
+
+/// <summary>
+/// Configuration for reranking
+/// </summary>
+public class RerankingConfig
+{
+    /// <summary>
+    /// Whether reranking is enabled
+    /// </summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Number of results after reranking
+    /// </summary>
+    [JsonPropertyName("top_k")]
+    public int? TopK { get; set; }
+}
+
+/// <summary>
+/// Configuration for references
+/// </summary>
+public class ReferencesConfig
+{
+    /// <summary>
+    /// Whether references are enabled
+    /// </summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+}
+
+/// <summary>
+/// RAG (Retrieval-Augmented Generation) configuration
+/// </summary>
+public class RAGConfig
+{
+    /// <summary>
+    /// LLM provider to use
+    /// </summary>
+    [JsonPropertyName("llm_provider")]
+    [JsonConverter(typeof(SnakeCaseEnumConverter<LLMProvider>))]
+    public LLMProvider? LlmProvider { get; set; }
+
+    /// <summary>
+    /// Query rewrite configuration
+    /// </summary>
+    [JsonPropertyName("query_rewrite")]
+    public QueryRewriteConfig? QueryRewrite { get; set; }
+
+    /// <summary>
+    /// Vector search configuration
+    /// </summary>
+    [JsonPropertyName("vector_search")]
+    public VectorSearchConfig? VectorSearch { get; set; }
+
+    /// <summary>
+    /// Reranking configuration
+    /// </summary>
+    [JsonPropertyName("reranking")]
+    public RerankingConfig? Reranking { get; set; }
+
+    /// <summary>
+    /// References configuration
+    /// </summary>
+    [JsonPropertyName("references")]
+    public ReferencesConfig? References { get; set; }
+}
+
+/// <summary>
 /// Request for chat
 /// </summary>
 public class ChatRequest
@@ -574,10 +878,34 @@ public class ChatRequest
     public bool? Stream { get; set; }
 
     /// <summary>
+    /// Optional chat ID to continue a conversation
+    /// </summary>
+    [JsonPropertyName("chat_id")]
+    public string? ChatId { get; set; }
+
+    /// <summary>
+    /// Optional system prompt to guide the AI's behavior
+    /// </summary>
+    [JsonPropertyName("system_prompt")]
+    public string? SystemPrompt { get; set; }
+
+    /// <summary>
     /// Optional filters to focus chat context
     /// </summary>
     [JsonPropertyName("filters")]
     public List<Filter>? Filters { get; set; }
+
+    /// <summary>
+    /// Optional RAG configuration
+    /// </summary>
+    [JsonPropertyName("rag_config")]
+    public RAGConfig? RagConfig { get; set; }
+
+    /// <summary>
+    /// Optional project ID (required with Token Authentication)
+    /// </summary>
+    [JsonPropertyName("project_id")]
+    public string? ProjectId { get; set; }
 }
 
 /// <summary>
@@ -602,6 +930,18 @@ public class ChatResponse
     /// </summary>
     [JsonPropertyName("intermediate_steps")]
     public required List<object> IntermediateSteps { get; set; }
+
+    /// <summary>
+    /// Chat ID for conversation continuity
+    /// </summary>
+    [JsonPropertyName("chat_id")]
+    public string? ChatId { get; set; }
+
+    /// <summary>
+    /// References mapping citation numbers to memo UUIDs
+    /// </summary>
+    [JsonPropertyName("references")]
+    public Dictionary<string, string>? References { get; set; }
 }
 
 /// <summary>
@@ -610,14 +950,20 @@ public class ChatResponse
 public class ChatStreamEvent
 {
     /// <summary>
-    /// Event type (token or done)
+    /// Event type (token, references, or done)
     /// </summary>
     [JsonPropertyName("type")]
     public required string Type { get; set; }
 
     /// <summary>
-    /// Token content (for token events)
+    /// Token content (for token events) or references content (for references events)
     /// </summary>
     [JsonPropertyName("content")]
     public string? Content { get; set; }
+
+    /// <summary>
+    /// Chat ID for conversation continuity (for done events)
+    /// </summary>
+    [JsonPropertyName("chat_id")]
+    public string? ChatId { get; set; }
 }
