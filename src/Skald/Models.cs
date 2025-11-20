@@ -641,17 +641,6 @@ public class Filter
 }
 
 /// <summary>
-/// Search method to use
-/// </summary>
-public enum SearchMethod
-{
-    /// <summary>
-    /// Semantic search on memo chunks
-    /// </summary>
-    ChunkSemanticSearch
-}
-
-/// <summary>
 /// Request for searching memos
 /// </summary>
 public class SearchRequest
@@ -661,13 +650,6 @@ public class SearchRequest
     /// </summary>
     [JsonPropertyName("query")]
     public required string Query { get; set; }
-
-    /// <summary>
-    /// Search method to use (required)
-    /// </summary>
-    [JsonPropertyName("search_method")]
-    [JsonConverter(typeof(SnakeCaseEnumConverter<SearchMethod>))]
-    public SearchMethod SearchMethod { get; set; }
 
     /// <summary>
     /// Maximum results to return (1-50, default 10)

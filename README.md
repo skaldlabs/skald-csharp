@@ -10,7 +10,7 @@ dotnet add package Skald
 
 ## Requirements
 
-- .NET 8.0 or higher
+- .NET 8.0, .NET 9.0
 
 ## Usage
 
@@ -44,7 +44,7 @@ var result = await client.CreateMemoAsync(new MemoData
     ExpirationDate = "2024-12-31T23:59:59Z"
 });
 
-Console.WriteLine(result.Ok); // True
+Console.WriteLine(result.MemoUuid); // "550e8400-e29b-41d4-a716-446655440000"
 ```
 
 **Required Fields:**
@@ -64,10 +64,17 @@ Retrieve a memo by its UUID or your reference ID:
 
 ```csharp
 // Get by UUID
-var memo = await client.GetMemoAsync("550e8400-e29b-41d4-a716-446655440000");
+var memo = await client.GetMemoAsync(new GetMemoRequest
+{
+    MemoId = "550e8400-e29b-41d4-a716-446655440000"
+});
 
 // Get by reference ID
-var memo = await client.GetMemoAsync("external-id-123", IdType.ReferenceId);
+var memo = await client.GetMemoAsync(new GetMemoRequest
+{
+    MemoId = "external-id-123",
+    IdType = IdType.ReferenceId
+});
 
 Console.WriteLine(memo.Title);
 Console.WriteLine(memo.Content);
@@ -107,17 +114,26 @@ Update an existing memo by UUID or reference ID:
 
 ```csharp
 // Update by UUID
-await client.UpdateMemoAsync("550e8400-e29b-41d4-a716-446655440000", new UpdateMemoData
+await client.UpdateMemoAsync(new UpdateMemoRequest
 {
-    Title = "Updated Title",
-    Metadata = new Dictionary<string, object> { { "status", "reviewed" } }
+    MemoId = "550e8400-e29b-41d4-a716-446655440000",
+    UpdateData = new UpdateMemoData
+    {
+        Title = "Updated Title",
+        Metadata = new Dictionary<string, object> { { "status", "reviewed" } }
+    }
 });
 
 // Update by reference ID and trigger reprocessing
-await client.UpdateMemoAsync("external-id-123", new UpdateMemoData
+await client.UpdateMemoAsync(new UpdateMemoRequest
 {
-    Content = "New content that will be reprocessed"
-}, IdType.ReferenceId);
+    MemoId = "external-id-123",
+    IdType = IdType.ReferenceId,
+    UpdateData = new UpdateMemoData
+    {
+        Content = "New content that will be reprocessed"
+    }
+});
 ```
 
 **Note:** When you update the `Content` field, the memo will be automatically reprocessed (summary, tags, and chunks regenerated).
@@ -136,10 +152,18 @@ Permanently delete a memo and all associated data:
 
 ```csharp
 // Delete by UUID
-await client.DeleteMemoAsync("550e8400-e29b-41d4-a716-446655440000");
+var result = await client.DeleteMemoAsync(new DeleteMemoRequest
+{
+    MemoId = "550e8400-e29b-41d4-a716-446655440000"
+});
+Console.WriteLine(result.Ok); // true
 
 // Delete by reference ID
-await client.DeleteMemoAsync("external-id-123", IdType.ReferenceId);
+await client.DeleteMemoAsync(new DeleteMemoRequest
+{
+    MemoId = "external-id-123",
+    IdType = IdType.ReferenceId
+});
 ```
 
 **Warning:** This operation permanently deletes the memo and all related data (content, summary, tags, chunks) and cannot be undone.
@@ -153,7 +177,6 @@ Search through your memos using various search methods with optional filters:
 var results = await client.SearchAsync(new SearchRequest
 {
     Query = "quarterly goals",
-    SearchMethod = SearchMethod.ChunkVectorSearch,
     Limit = 10
 });
 
@@ -161,7 +184,6 @@ var results = await client.SearchAsync(new SearchRequest
 var filtered = await client.SearchAsync(new SearchRequest
 {
     Query = "python tutorial",
-    SearchMethod = SearchMethod.TitleContains,
     Filters = new List<Filter>
     {
         new Filter
@@ -182,39 +204,37 @@ var filtered = await client.SearchAsync(new SearchRequest
 });
 
 Console.WriteLine($"Found {filtered.Results.Count} results");
-foreach (var memo in filtered.Results)
+foreach (var result in filtered.Results)
 {
-    Console.WriteLine($"- {memo.Title} (distance: {memo.Distance})");
+    Console.WriteLine($"- {result.MemoTitle} (distance: {result.Distance})");
+    Console.WriteLine($"  Chunk: {result.ChunkContent.Substring(0, 100)}...");
 }
 ```
-
-#### Search Methods
-
-- **`ChunkVectorSearch`** - Semantic search on memo chunks for detailed content search
-- **`TitleContains`** - Case-insensitive substring match on memo titles
-- **`TitleStartswith`** - Case-insensitive prefix match on memo titles
 
 #### Search Parameters
 
 - `Query` (string, required) - The search query
-- `SearchMethod` (SearchMethod, required) - One of the search methods above
 - `Limit` (int, optional) - Maximum results to return (1-50, default 10)
 - `Filters` (List<Filter>, optional) - Array of filter objects to narrow results
+
+The search uses semantic search on memo chunks for detailed content search.
 
 #### Search Response
 
 ```csharp
 public class SearchResult
 {
-    public string Uuid { get; set; }          // Unique identifier for the memo
-    public string Title { get; set; }          // Memo title
-    public string Summary { get; set; }        // Auto-generated summary
-    public string ContentSnippet { get; set; } // Snippet of the content
+    public string MemoUuid { get; set; }       // Unique identifier for the memo
+    public string ChunkUuid { get; set; }      // Unique identifier for the chunk
+    public string MemoTitle { get; set; }      // Memo title
+    public string MemoSummary { get; set; }    // Auto-generated memo summary
+    public string ContentSnippet { get; set; } // Snippet of the chunk content
+    public string ChunkContent { get; set; }   // Full content of the matching chunk
     public double? Distance { get; set; }      // Relevance score (0-2, lower is more relevant)
 }
 ```
 
-- `Distance` - A decimal from 0 to 2 determining how close the result was deemed to be to the query when using semantic search. The closer to 0 the more related the content is to the query. `null` if using `TitleContains` or `TitleStartswith`.
+- `Distance` - A decimal from 0 to 2 determining how close the result was deemed to be to the query. The closer to 0 the more related the content is to the query.
 
 ### Chat with Your Knowledge Base
 
@@ -223,7 +243,10 @@ Ask questions about your memos using an AI agent. The agent retrieves relevant c
 #### Non-Streaming Chat
 
 ```csharp
-var result = await client.ChatAsync("What were the main points discussed in the Q1 meeting?");
+var result = await client.ChatAsync(new ChatRequest
+{
+    Query = "What were the main points discussed in the Q1 meeting?"
+});
 
 Console.WriteLine(result.Response);
 // "The main points discussed in the Q1 meeting were:
@@ -232,6 +255,15 @@ Console.WriteLine(result.Response);
 // 3. Product roadmap [[1]][[3]]"
 
 Console.WriteLine(result.Ok); // true
+
+// Access references if enabled
+if (result.References != null)
+{
+    foreach (var reference in result.References)
+    {
+        Console.WriteLine($"Reference {reference.Key}: {reference.Value}");
+    }
+}
 ```
 
 #### Streaming Chat
@@ -239,7 +271,10 @@ Console.WriteLine(result.Ok); // true
 For real-time responses, use streaming chat:
 
 ```csharp
-await foreach (var evt in client.StreamedChatAsync("What are our quarterly goals?"))
+await foreach (var evt in client.StreamedChatAsync(new ChatRequest
+{
+    Query = "What are our quarterly goals?"
+}))
 {
     if (evt.Type == "token" && evt.Content != null)
     {
@@ -248,15 +283,22 @@ await foreach (var evt in client.StreamedChatAsync("What are our quarterly goals
     }
     else if (evt.Type == "done")
     {
-        Console.WriteLine("\nDone!");
+        Console.WriteLine($"\nDone! Chat ID: {evt.ChatId}");
     }
 }
 ```
 
 #### Chat Parameters
 
-- `query` (string, required) - The question to ask
-- `filters` (List<Filter>, optional) - Array of filter objects to focus chat context on specific sources
+The `ChatRequest` object supports the following parameters:
+
+- `Query` (string, required) - The question to ask
+- `Stream` (bool, optional) - Whether to stream the response (not needed when using `StreamedChatAsync`)
+- `ChatId` (string, optional) - Chat ID to continue a previous conversation
+- `SystemPrompt` (string, optional) - Custom system prompt to guide the AI's behavior
+- `Filters` (List<Filter>, optional) - Array of filter objects to focus chat context on specific sources
+- `RagConfig` (RAGConfig, optional) - Advanced RAG configuration (LLM provider, query rewrite, vector search, reranking, references)
+- `ProjectId` (string, optional) - Project ID (required with Token Authentication)
 
 #### Chat Response
 
@@ -264,77 +306,57 @@ Non-streaming responses include:
 - `Ok` (bool) - Success status
 - `Response` (string) - The AI's answer with inline citations in format `[[N]]`
 - `IntermediateSteps` (List<object>) - Steps taken by the agent (for debugging)
+- `ChatId` (string) - Chat ID for conversation continuity
+- `References` (Dictionary<string, object>) - References mapping citation numbers to memo information
 
 Streaming responses yield events:
 - `{ Type = "token", Content = "..." }` - Each text token as it's generated
-- `{ Type = "done" }` - Indicates the stream has finished
+- `{ Type = "references", Content = "..." }` - References information
+- `{ Type = "done", ChatId = "..." }` - Indicates the stream has finished with chat ID
 
-### Generate Documents
+### File Upload
 
-Generate documents based on prompts and retrieved context from your knowledge base. Similar to chat but optimized for document generation with optional style/format rules.
-
-#### Non-Streaming Document Generation
+You can create memos from files (PDF, DOCX, TXT, etc.) which will be automatically processed:
 
 ```csharp
-var result = await client.GenerateDocAsync(
-    prompt: "Create a product requirements document for a new mobile app",
-    rules: "Use formal business language. Include sections for: Overview, Requirements, Technical Specifications, Timeline"
-);
+var pdfBytes = await File.ReadAllBytesAsync("document.pdf");
+var result = await client.CreateMemoFromFileAsync(new MemoFileData
+{
+    File = pdfBytes,
+    Filename = "document.pdf",
+    Title = "Important Document",
+    Tags = new List<string> { "document", "pdf" },
+    Source = "file-upload",
+    Metadata = new Dictionary<string, object>
+    {
+        { "department", "legal" }
+    }
+});
 
-Console.WriteLine(result.Response);
-// "# Product Requirements Document
-//
-// ## Overview
-// This document outlines the requirements for...
-//
-// ## Requirements
-// 1. User authentication [[1]]
-// 2. Push notifications [[2]]..."
-
-Console.WriteLine(result.Ok); // true
+Console.WriteLine(result.MemoUuid);
 ```
 
-#### Streaming Document Generation
+#### Check Processing Status
 
-For real-time document generation, use streaming:
+After uploading a file, you can check its processing status:
 
 ```csharp
-await foreach (var evt in client.StreamedGenerateDocAsync(
-    prompt: "Write a technical specification for user authentication",
-    rules: "Include sections for: Architecture, Security, API Endpoints, Data Models"))
+var statusResponse = await client.CheckMemoStatusAsync(new CheckMemoStatusRequest
 {
-    if (evt.Type == "token" && evt.Content != null)
-    {
-        // Write each token as it arrives
-        Console.Write(evt.Content);
-    }
-    else if (evt.Type == "done")
-    {
-        Console.WriteLine("\nDone!");
-    }
+    MemoId = result.MemoUuid
+});
+
+Console.WriteLine(statusResponse.Status); // Processing, Processed, or Error
+
+if (statusResponse.Status == MemoStatus.Error)
+{
+    Console.WriteLine($"Error: {statusResponse.ErrorReason}");
 }
 ```
 
-#### Generate Document Parameters
-
-- `prompt` (string, required) - The prompt describing what document to generate
-- `rules` (string, optional) - Optional style/format rules
-- `filters` (List<Filter>, optional) - Array of filter objects to control which memos are used for generation
-
-#### Generate Document Response
-
-Non-streaming responses include:
-- `Ok` (bool) - Success status
-- `Response` (string) - The generated document with inline citations in format `[[N]]`
-- `IntermediateSteps` (List<object>) - Steps taken by the agent (for debugging)
-
-Streaming responses yield events:
-- `{ Type = "token", Content = "..." }` - Each text token as it's generated
-- `{ Type = "done" }` - Indicates the stream has finished
-
 ### Filters
 
-Filters allow you to narrow down results based on memo metadata. You can filter by native fields or custom metadata fields. Filters are supported in `SearchAsync()`, `ChatAsync()`, `GenerateDocAsync()`, and their streaming variants.
+Filters allow you to narrow down results based on memo metadata. You can filter by native fields or custom metadata fields. Filters are supported in `SearchAsync()` and `ChatAsync()`.
 
 #### Filter Structure
 
@@ -427,7 +449,6 @@ When you provide multiple filters, they are combined with AND logic (all filters
 var results = await client.SearchAsync(new SearchRequest
 {
     Query = "security best practices",
-    SearchMethod = SearchMethod.ChunkVectorSearch,
     Filters = new List<Filter>
     {
         new Filter
@@ -460,9 +481,10 @@ var results = await client.SearchAsync(new SearchRequest
 Focus chat context on specific sources:
 
 ```csharp
-var result = await client.ChatAsync(
-    query: "What are our security practices?",
-    filters: new List<Filter>
+var result = await client.ChatAsync(new ChatRequest
+{
+    Query = "What are our security practices?",
+    Filters = new List<Filter>
     {
         new Filter
         {
@@ -472,35 +494,7 @@ var result = await client.ChatAsync(
             FilterType = FilterType.NativeField
         }
     }
-);
-```
-
-#### Filters with Document Generation
-
-Control which memos are used for document generation:
-
-```csharp
-var doc = await client.GenerateDocAsync(
-    prompt: "Create an API integration guide",
-    rules: "Use technical language with code examples",
-    filters: new List<Filter>
-    {
-        new Filter
-        {
-            Field = "source",
-            Operator = FilterOperator.In,
-            Value = new[] { "api-docs", "technical-specs" },
-            FilterType = FilterType.NativeField
-        },
-        new Filter
-        {
-            Field = "document_type",
-            Operator = FilterOperator.Eq,
-            Value = "specification",
-            FilterType = FilterType.CustomMetadata
-        }
-    }
-);
+});
 ```
 
 ### Error Handling

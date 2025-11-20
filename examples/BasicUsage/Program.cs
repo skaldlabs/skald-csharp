@@ -23,7 +23,7 @@ class Program
 
         try
         {
-            // Example 1: Create a memo
+            // // Example 1: Create a memo
             Console.WriteLine("Creating a memo...");
             var createResponse = await client.CreateMemoAsync(new MemoData
             {
@@ -41,7 +41,7 @@ class Program
             });
             Console.WriteLine($"Memo created successfully with UUID: {createResponse.MemoUuid}");
 
-            // Example 2: List memos
+            // // Example 2: List memos
             Console.WriteLine("\nListing memos...");
             var memos = await client.ListMemosAsync(new ListMemosParams
             {
@@ -70,7 +70,6 @@ class Program
             var searchResults = await client.SearchAsync(new SearchRequest
             {
                 Query = "planning goals",
-                SearchMethod = SearchMethod.ChunkSemanticSearch,
                 Limit = 5
             });
             Console.WriteLine($"Found {searchResults.Results.Count} results:");
@@ -85,7 +84,6 @@ class Program
             var filteredSearch = await client.SearchAsync(new SearchRequest
             {
                 Query = "goals",
-                SearchMethod = SearchMethod.ChunkSemanticSearch,
                 Filters = new List<Filter>
                 {
                     new Filter
@@ -173,9 +171,9 @@ class Program
             }
 
             // Example 10: Create memo from file (if you have a PDF file)
-            /*
+            
             Console.WriteLine("\nCreating memo from PDF file...");
-            var pdfBytes = await File.ReadAllBytesAsync("path/to/document.pdf");
+            var pdfBytes = await File.ReadAllBytesAsync("./localcurrency-snippet.pdf");
             var fileResponse = await client.CreateMemoFromFileAsync(new MemoFileData
             {
                 File = pdfBytes,
@@ -210,9 +208,9 @@ class Program
             {
                 Console.WriteLine("File processed successfully!");
             }
-            */
+            
 
-            // Example 11: Update a memo
+            // // Example 11: Update a memo
             if (memos.Results.Count > 0)
             {
                 var memoToUpdate = memos.Results[0].Uuid;
@@ -234,18 +232,18 @@ class Program
             }
 
             // Example 12: Delete a memo (commented out to avoid deleting data)
-            /*
-            if (memos.Results.Count > 0)
-            {
-                var memoToDelete = memos.Results[0].Uuid;
-                Console.WriteLine($"\nDeleting memo {memoToDelete}...");
-                var deleteResponse = await client.DeleteMemoAsync(new DeleteMemoRequest
-                {
-                    MemoId = memoToDelete
-                });
-                Console.WriteLine($"Delete successful: {deleteResponse.Ok}");
-            }
-            */
+        
+            // if (memos.Results.Count > 0)
+            // {
+            //     var memoToDelete = memos.Results[0].Uuid;
+            //     Console.WriteLine($"\nDeleting memo {memoToDelete}...");
+            //     var deleteResponse = await client.DeleteMemoAsync(new DeleteMemoRequest
+            //     {
+            //         MemoId = memoToDelete
+            //     });
+            //     Console.WriteLine($"Delete successful: {deleteResponse.Ok}");
+            // }
+            
 
             Console.WriteLine("\nAll examples completed successfully!");
         }

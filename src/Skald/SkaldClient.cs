@@ -299,6 +299,12 @@ public class SkaldClient : IDisposable
             throw new SkaldException($"Skald API error ({(int)response.StatusCode}): {errorText}");
         }
 
+        if (response.Content.Headers.ContentLength == 0 ||
+            response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        {
+            return new DeleteMemoResponse { Ok = true };
+        }
+
         return await response.Content.ReadFromJsonAsync<DeleteMemoResponse>(cancellationToken)
             ?? throw new SkaldException("Failed to deserialize response");
     }
@@ -488,7 +494,7 @@ public class SkaldClient : IDisposable
         if (string.IsNullOrWhiteSpace(fileData.Filename))
             throw new ArgumentException("Filename cannot be null or empty", nameof(fileData.Filename));
 
-        var url = $"{_baseUrl}/api/v1/memo/upload";
+        var url = $"{_baseUrl}/api/v1/memo";
 
         using var formData = new MultipartFormDataContent();
 

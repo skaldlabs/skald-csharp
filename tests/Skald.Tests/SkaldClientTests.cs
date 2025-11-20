@@ -297,7 +297,6 @@ public class SkaldClientTests : IDisposable
         var searchRequest = new SearchRequest
         {
             Query = "test query",
-            SearchMethod = SearchMethod.ChunkSemanticSearch,
             Limit = 10
         };
 
