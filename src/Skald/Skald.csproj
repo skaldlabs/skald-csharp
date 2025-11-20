@@ -8,7 +8,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>Skald</PackageId>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
     <Authors>Skald Labs, Inc.</Authors>
     <Company>Skald Labs, Inc.</Company>
     <Description>C# client library for the Skald API</Description>
