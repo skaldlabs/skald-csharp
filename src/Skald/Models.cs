@@ -223,12 +223,6 @@ public class Memo
     public required string Summary { get; set; }
 
     /// <summary>
-    /// Content length in characters
-    /// </summary>
-    [JsonPropertyName("content_length")]
-    public int ContentLength { get; set; }
-
-    /// <summary>
     /// Custom metadata
     /// </summary>
     [JsonPropertyName("metadata")]
@@ -317,12 +311,6 @@ public class MemoListItem
     /// </summary>
     [JsonPropertyName("summary")]
     public required string Summary { get; set; }
-
-    /// <summary>
-    /// Content length in characters
-    /// </summary>
-    [JsonPropertyName("content_length")]
-    public int ContentLength { get; set; }
 
     /// <summary>
     /// Custom metadata
@@ -702,26 +690,38 @@ public class SearchResult
     /// <summary>
     /// Memo UUID
     /// </summary>
-    [JsonPropertyName("uuid")]
-    public required string Uuid { get; set; }
+    [JsonPropertyName("memo_uuid")]
+    public required string MemoUuid { get; set; }
+
+    /// <summary>
+    /// Chunk UUID
+    /// </summary>
+    [JsonPropertyName("chunk_uuid")]
+    public required string ChunkUuid { get; set; }
 
     /// <summary>
     /// Memo title
     /// </summary>
-    [JsonPropertyName("title")]
-    public required string Title { get; set; }
+    [JsonPropertyName("memo_title")]
+    public required string MemoTitle { get; set; }
 
     /// <summary>
-    /// AI-generated summary
+    /// AI-generated summary of the memo
     /// </summary>
-    [JsonPropertyName("summary")]
-    public required string Summary { get; set; }
+    [JsonPropertyName("memo_summary")]
+    public required string MemoSummary { get; set; }
 
     /// <summary>
-    /// Content snippet
+    /// Content snippet from the chunk
     /// </summary>
     [JsonPropertyName("content_snippet")]
     public required string ContentSnippet { get; set; }
+
+    /// <summary>
+    /// Full content of the matching chunk
+    /// </summary>
+    [JsonPropertyName("chunk_content")]
+    public required string ChunkContent { get; set; }
 
     /// <summary>
     /// Distance score (0-2, lower is more relevant) - null for non-semantic searches
@@ -938,10 +938,10 @@ public class ChatResponse
     public string? ChatId { get; set; }
 
     /// <summary>
-    /// References mapping citation numbers to memo UUIDs
+    /// References mapping citation numbers to memo information
     /// </summary>
     [JsonPropertyName("references")]
-    public Dictionary<string, string>? References { get; set; }
+    public Dictionary<string, object>? References { get; set; }
 }
 
 /// <summary>

@@ -76,7 +76,7 @@ class Program
             Console.WriteLine($"Found {searchResults.Results.Count} results:");
             foreach (var result in searchResults.Results)
             {
-                Console.WriteLine($"  - {result.Title} (Distance: {result.Distance})");
+                Console.WriteLine($"  - {result.MemoTitle} (Distance: {result.Distance})");
                 Console.WriteLine($"    Snippet: {result.ContentSnippet.Substring(0, Math.Min(100, result.ContentSnippet.Length))}...");
             }
 

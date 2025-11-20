@@ -307,10 +307,12 @@ public class SkaldClientTests : IDisposable
             {
                 new SearchResult
                 {
-                    Uuid = "test-uuid",
-                    Title = "Test Memo",
-                    Summary = "Test summary",
+                    MemoUuid = "test-uuid",
+                    ChunkUuid = "test-chunk-uuid",
+                    MemoTitle = "Test Memo",
+                    MemoSummary = "Test summary",
                     ContentSnippet = "Test snippet",
+                    ChunkContent = "Full chunk content",
                     Distance = 0.5
                 }
             }
