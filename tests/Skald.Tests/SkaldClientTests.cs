@@ -65,7 +65,7 @@ public class SkaldClientTests : IDisposable
             Source = "test-source"
         };
 
-        var expectedResponse = new CreateMemoResponse { Ok = true };
+        var expectedResponse = new CreateMemoResponse { Ok = true, MemoUuid = "test-uuid-123" };
         SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
@@ -93,7 +93,7 @@ public class SkaldClientTests : IDisposable
             Content = "Test content"
         };
 
-        var expectedResponse = new CreateMemoResponse { Ok = true };
+        var expectedResponse = new CreateMemoResponse { Ok = true, MemoUuid = "test-uuid-123" };
         SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
@@ -132,7 +132,7 @@ public class SkaldClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, expectedMemo);
 
         // Act
-        var result = await _client.GetMemoAsync(memoUuid);
+        var result = await _client.GetMemoAsync(new GetMemoRequest { MemoId = memoUuid });
 
         // Assert
         Assert.NotNull(result);
@@ -149,7 +149,7 @@ public class SkaldClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, expectedMemo);
 
         // Act
-        var result = await _client.GetMemoAsync(referenceId, IdType.ReferenceId);
+        var result = await _client.GetMemoAsync(new GetMemoRequest { MemoId = referenceId, IdType = IdType.ReferenceId });
 
         // Assert
         Assert.NotNull(result);
@@ -159,7 +159,7 @@ public class SkaldClientTests : IDisposable
     [Fact]
     public async Task GetMemoAsync_WithEmptyId_ShouldThrowArgumentException()
     {
-        await Assert.ThrowsAsync<ArgumentException>(() => _client.GetMemoAsync(""));
+        await Assert.ThrowsAsync<ArgumentException>(() => _client.GetMemoAsync(new GetMemoRequest { MemoId = "" }));
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public class SkaldClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
-        var result = await _client.UpdateMemoAsync(memoUuid, updateData);
+        var result = await _client.UpdateMemoAsync(new UpdateMemoRequest { MemoId = memoUuid, UpdateData = updateData });
 
         // Assert
         Assert.NotNull(result);
@@ -243,7 +243,7 @@ public class SkaldClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
-        var result = await _client.UpdateMemoAsync(referenceId, updateData, IdType.ReferenceId);
+        var result = await _client.UpdateMemoAsync(new UpdateMemoRequest { MemoId = referenceId, UpdateData = updateData, IdType = IdType.ReferenceId });
 
         // Assert
         Assert.NotNull(result);
@@ -253,7 +253,7 @@ public class SkaldClientTests : IDisposable
     [Fact]
     public async Task UpdateMemoAsync_WithNullData_ShouldThrowArgumentNullException()
     {
-        await Assert.ThrowsAsync<ArgumentNullException>(() => _client.UpdateMemoAsync("uuid", null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _client.UpdateMemoAsync(new UpdateMemoRequest { MemoId = "uuid", UpdateData = null! }));
     }
 
     [Fact]
@@ -261,12 +261,15 @@ public class SkaldClientTests : IDisposable
     {
         // Arrange
         var memoUuid = "550e8400-e29b-41d4-a716-446655440000";
-        SetupHttpResponse(HttpStatusCode.NoContent, "");
+        var expectedResponse = new DeleteMemoResponse { Ok = true };
+        SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
-        await _client.DeleteMemoAsync(memoUuid);
+        var result = await _client.DeleteMemoAsync(new DeleteMemoRequest { MemoId = memoUuid });
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Ok);
         VerifyHttpRequest(HttpMethod.Delete, $"{BaseUrl}/api/v1/memo/{memoUuid}");
     }
 
@@ -275,23 +278,25 @@ public class SkaldClientTests : IDisposable
     {
         // Arrange
         var referenceId = "external-id-123";
-        SetupHttpResponse(HttpStatusCode.NoContent, "");
+        var expectedResponse = new DeleteMemoResponse { Ok = true };
+        SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
-        await _client.DeleteMemoAsync(referenceId, IdType.ReferenceId);
+        var result = await _client.DeleteMemoAsync(new DeleteMemoRequest { MemoId = referenceId, IdType = IdType.ReferenceId });
 
         // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Ok);
         VerifyHttpRequest(HttpMethod.Delete, $"{BaseUrl}/api/v1/memo/{referenceId}?id_type=reference_id");
     }
 
     [Fact]
-    public async Task SearchAsync_WithChunkVectorSearch_ShouldReturnResults()
+    public async Task SearchAsync_WithChunkSemanticSearch_ShouldReturnResults()
     {
         // Arrange
         var searchRequest = new SearchRequest
         {
             Query = "test query",
-            SearchMethod = SearchMethod.ChunkVectorSearch,
             Limit = 10
         };
 
@@ -301,10 +306,12 @@ public class SkaldClientTests : IDisposable
             {
                 new SearchResult
                 {
-                    Uuid = "test-uuid",
-                    Title = "Test Memo",
-                    Summary = "Test summary",
+                    MemoUuid = "test-uuid",
+                    ChunkUuid = "test-chunk-uuid",
+                    MemoTitle = "Test Memo",
+                    MemoSummary = "Test summary",
                     ContentSnippet = "Test snippet",
+                    ChunkContent = "Full chunk content",
                     Distance = 0.5
                 }
             }
@@ -341,7 +348,7 @@ public class SkaldClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
-        var result = await _client.ChatAsync(query);
+        var result = await _client.ChatAsync(new ChatRequest { Query = query });
 
         // Assert
         Assert.NotNull(result);
@@ -353,7 +360,7 @@ public class SkaldClientTests : IDisposable
     [Fact]
     public async Task ChatAsync_WithEmptyQuery_ShouldThrowArgumentException()
     {
-        await Assert.ThrowsAsync<ArgumentException>(() => _client.ChatAsync(""));
+        await Assert.ThrowsAsync<ArgumentException>(() => _client.ChatAsync(new ChatRequest { Query = "" }));
     }
 
     [Fact]
@@ -380,7 +387,7 @@ public class SkaldClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
 
         // Act
-        var result = await _client.ChatAsync(query, filters);
+        var result = await _client.ChatAsync(new ChatRequest { Query = query, Filters = filters });
 
         // Assert
         Assert.NotNull(result);
@@ -397,7 +404,7 @@ public class SkaldClientTests : IDisposable
 
         // Act
         var events = new List<ChatStreamEvent>();
-        await foreach (var evt in _client.StreamedChatAsync(query))
+        await foreach (var evt in _client.StreamedChatAsync(new ChatRequest { Query = query }))
         {
             events.Add(evt);
         }
@@ -421,7 +428,7 @@ public class SkaldClientTests : IDisposable
 
         // Act
         var events = new List<ChatStreamEvent>();
-        await foreach (var evt in _client.StreamedChatAsync(query))
+        await foreach (var evt in _client.StreamedChatAsync(new ChatRequest { Query = query }))
         {
             events.Add(evt);
         }
@@ -442,65 +449,13 @@ public class SkaldClientTests : IDisposable
 
         // Act
         var events = new List<ChatStreamEvent>();
-        await foreach (var evt in _client.StreamedChatAsync(query))
+        await foreach (var evt in _client.StreamedChatAsync(new ChatRequest { Query = query }))
         {
             events.Add(evt);
         }
 
         // Assert
         Assert.Equal(2, events.Count);
-    }
-
-    [Fact]
-    public async Task GenerateDocAsync_WithPrompt_ShouldReturnResponse()
-    {
-        // Arrange
-        var prompt = "Create a document";
-        var rules = "Use formal language";
-        var expectedResponse = new GenerateDocResponse
-        {
-            Ok = true,
-            Response = "Generated document content",
-            IntermediateSteps = new List<object>()
-        };
-        SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
-
-        // Act
-        var result = await _client.GenerateDocAsync(prompt, rules);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.True(result.Ok);
-        Assert.Equal("Generated document content", result.Response);
-        VerifyHttpRequest(HttpMethod.Post, $"{BaseUrl}/api/v1/generate");
-    }
-
-    [Fact]
-    public async Task GenerateDocAsync_WithEmptyPrompt_ShouldThrowArgumentException()
-    {
-        await Assert.ThrowsAsync<ArgumentException>(() => _client.GenerateDocAsync(""));
-    }
-
-    [Fact]
-    public async Task StreamedGenerateDocAsync_ShouldYieldEvents()
-    {
-        // Arrange
-        var prompt = "Create a document";
-        var streamData = "data: {\"type\":\"token\",\"content\":\"Generated\"}\ndata: {\"type\":\"token\",\"content\":\" content\"}\ndata: {\"type\":\"done\"}\n";
-        SetupStreamingHttpResponse(HttpStatusCode.OK, streamData);
-
-        // Act
-        var events = new List<GenerateDocStreamEvent>();
-        await foreach (var evt in _client.StreamedGenerateDocAsync(prompt))
-        {
-            events.Add(evt);
-        }
-
-        // Assert
-        Assert.Equal(3, events.Count);
-        Assert.Equal("Generated", events[0].Content);
-        Assert.Equal(" content", events[1].Content);
-        Assert.Equal("done", events[2].Type);
     }
 
     // Helper methods
